@@ -2,7 +2,7 @@
 title: "Formative Assessment 3"
 author: "Kian Arago & Owen Santiago"
 date: "`r Sys.Date()`"
-output: word_document
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
