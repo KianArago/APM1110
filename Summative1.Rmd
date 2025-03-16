@@ -1,0 +1,240 @@
+---
+title: "Summative Assessment 1"
+author: "Arago & Santiago"
+date: "`r Sys.Date()`"
+output: pdf_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+### Problem 1
+
+```{r}
+library(shiny)
+```
+
+### Define UI
+
+```{r}
+ui <- fluidPage(
+  titlePanel("Defective Product Probability Calculator"),
+  sidebarLayout(
+    sidebarPanel(
+      numericInput("x1", "Production Share of Factory 1 (x1):", 0.3, min = 0.1, max = 0.4),
+      numericInput("x2", "Production Share of Factory 2 (x2):", 0.3, min = 0.1, max = 0.4),
+      numericInput("x3", "Production Share of Factory 3 (x3):", 0.4, min = 0.1, max = 0.4),
+      numericInput("y1", "Defective Rate of Factory 1 (y1):", 0.03, min = 0.01, max = 0.05),
+      numericInput("y2", "Defective Rate of Factory 2 (y2):", 0.04, min = 0.01, max = 0.05),
+      numericInput("y3", "Defective Rate of Factory 3 (y3):", 0.05, min = 0.01, max = 0.05),
+      actionButton("calculate", "Calculate Probability")
+    ),
+    mainPanel(
+      verbatimTextOutput("result")
+    )
+  )
+)
+```
+
+### Define Server Logic
+
+```{r}
+server <- function(input, output, session) {
+  observeEvent(input$calculate, {
+    x1 <- input$x1
+    x2 <- input$x2
+    x3 <- input$x3
+    y1 <- input$y1
+    y2 <- input$y2
+    y3 <- input$y3
+    
+    if (round(x1 + x2 + x3, 2) != 1) {
+      output$result <- renderText("Error: x1 + x2 + x3 must equal 1.")
+      return()
+    }
+    
+    if (sum(y1, y2, y3) != 0.12) {
+      output$result <- renderText("Error: y1 + y2 + y3 must equal 0.12.")
+      return()
+    }
+    
+    p_defective <- x1 * y1 + x2 * y2 + x3 * y3
+    
+    output$result <- renderText({
+      paste("The probability of selecting a defective product is:", round(p_defective, 4))
+    })
+  })
+}
+```
+
+### Run the Shiny App
+
+```{r}
+shinyApp(ui, server)
+```
+
+### Problem 2 
+
+```{r}
+library(shiny)
+library(ggplot2)
+```
+
+### Define UI
+
+```{r}
+ui <- fluidPage(
+  titlePanel("Discrete Random Variable Analysis"),
+  sidebarLayout(
+    sidebarPanel(
+      radioButtons("var_type", "Select Variable Type:",
+                   choices = c("Univariate" = "uni", "Bivariate" = "bi")),
+      numericInput("num_values", "Number of Values:", 5, min = 2, max = 10),
+      uiOutput("value_inputs"),
+      actionButton("calculate", "Calculate")
+    ),
+    mainPanel(
+      plotOutput("pdfPlot"),
+      plotOutput("cdfPlot"),
+      verbatimTextOutput("summary")
+    )
+  )
+)
+```
+
+### Define Server Logic
+
+```{r}
+server <- function(input, output, session) {
+  observeEvent(input$num_values, {
+    output$value_inputs <- renderUI({
+      tagList(
+        lapply(1:input$num_values, function(i) {
+          fluidRow(
+            column(6, numericInput(paste0("val", i), paste("X", i, "Value"), value = i)),
+            column(6, numericInput(paste0("prob", i), paste("P(X=", i, ")"), value = 1/input$num_values, min = 0, max = 1))
+          )
+        })
+      )
+    })
+  })
+
+  observeEvent(input$calculate, {
+    values <- sapply(1:input$num_values, function(i) input[[paste0("val", i)]])
+    probs <- sapply(1:input$num_values, function(i) input[[paste0("prob", i)]])
+
+    if (sum(probs) != 1 || any(probs < 0 | probs > 1)) {
+      output$summary <- renderText("Error: Probabilities must be in [0,1] and sum to 1.")
+      return()
+    }
+
+    mean_value <- sum(values * probs)
+    variance_value <- sum((values - mean_value)^2 * probs)
+
+    output$summary <- renderText({
+      paste("Mean:", mean_value, "\nVariance:", variance_value)
+    })
+
+    df <- data.frame(X = values, P = probs)
+    output$pdfPlot <- renderPlot({
+      ggplot(df, aes(x = factor(X), y = P)) +
+        geom_bar(stat = "identity", fill = "blue", alpha = 0.7) +
+        labs(title = "Probability Mass Function", x = "X", y = "P(X)") +
+        theme_minimal()
+    })
+
+    output$cdfPlot <- renderPlot({
+      df <- df[order(df$X),]
+      df$CDF <- cumsum(df$P)
+      ggplot(df, aes(x = factor(X), y = CDF, group = 1)) +
+        geom_step(color = "red") +
+        labs(title = "Cumulative Distribution Function", x = "X", y = "F(X)") +
+        theme_minimal()
+    })
+  })
+}
+```
+
+### Run the Shiny App
+
+```{r}
+shinyApp(ui, server)
+```
+
+### Problem 3
+
+We simulate a search engine going through a list of sites for a given key phrase, stopping once the phrase is found. Each site contains the key phrase with probability `p = 0.6`.
+
+```{r}
+set.seed(123)
+
+p <- 0.6
+n_simulations <- 10000
+
+search_counts <- rgeom(n_simulations, p) + 1
+
+library(ggplot2)
+ggplot(data.frame(X = search_counts), aes(x = X)) +
+  geom_bar(aes(y = ..prop..), fill = "blue", alpha = 0.6) +
+  labs(title = "Simulated Probability Density Function",
+       x = "Number of Searches", y = "Probability") +
+  theme_minimal()
+```
+
+### Mean and Variance Calculation
+
+```{r}
+simulated_mean <- mean(search_counts)
+simulated_variance <- var(search_counts)
+
+theoretical_mean <- 1/p
+
+theoretical_variance <- (1-p) / (p^2)
+```
+
+```{r, echo=FALSE}
+cat("Simulated Mean:", simulated_mean, "\n")
+cat("Simulated Variance:", simulated_variance, "\n")
+cat("Theoretical Mean:", theoretical_mean, "\n")
+cat("Theoretical Variance:", theoretical_variance, "\n")
+```
+
+### Conditional Distribution Given X > 3
+
+```{r}
+conditional_data <- search_counts[search_counts > 3]
+
+cond_mean <- mean(conditional_data)
+cond_variance <- var(conditional_data)
+```
+
+```{r, echo=FALSE}
+cat("Conditional Mean (X > 3):", cond_mean, "\n")
+cat("Conditional Variance (X > 3):", cond_variance, "\n")
+```
+
+### Markov Memoryless Property Check
+
+We estimate:
+1. \( P(X = 4 | X > 3) \) and \( P(X = 1) \)
+2. \( P(X = 5 | X > 3) \) and \( P(X = 2) \)
+
+```{r}
+# Empirical probability estimation
+P_X_4_given_X_greater_3 <- mean(search_counts == 4) / mean(search_counts > 3)
+P_X_1 <- mean(search_counts == 1)
+
+P_X_5_given_X_greater_3 <- mean(search_counts == 5) / mean(search_counts > 3)
+P_X_2 <- mean(search_counts == 2)
+```
+
+```{r, echo=FALSE}
+cat("P(X = 4 | X > 3):", P_X_4_given_X_greater_3, "\n")
+cat("P(X = 1):", P_X_1, "\n")
+
+cat("P(X = 5 | X > 3):", P_X_5_given_X_greater_3, "\n")
+cat("P(X = 2):", P_X_2, "\n")
+```
+
+This confirms the Markov memoryless property, as the conditional probabilities align with the unconditional geometric probabilities.
