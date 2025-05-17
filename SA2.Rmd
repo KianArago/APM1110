@@ -1,0 +1,94 @@
+---
+title: "Summative Assessment 2"
+author: "Kian Arago"
+date: "2025-05-17"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+library(tidyverse)
+library(fitdistrplus)
+library(MASS)
+library(moments)
+library(tseries)
+```
+
+```{r, echo=FALSE}
+btc_data <- read_csv("btc_minute_data.csv", skip = 1)
+colnames(btc_data)
+```
+
+```{r, echo=FALSE}
+btc_data <- btc_data %>%
+  rename(
+    timestamp = `datetime`,
+    price = `price`
+  ) %>%
+  arrange(timestamp) %>%
+  mutate(return = c(NA, diff(log(as.numeric(price))))) %>%
+  drop_na()
+```
+
+```{r}
+hist(btc_data$return, breaks = 100, main = "BTC Log Returns Histogram", col = "skyblue", xlab = "Returns")
+```
+
+```{r, echo=FALSE}
+fit_norm <- fitdist(btc_data$return, "norm")
+fit_t <- fitdist(btc_data$return, "t", start = list(df = 3))
+
+summary(fit_norm)
+summary(fit_t)
+
+aic_values <- c(
+  Normal = fit_norm$aic,
+  t_Distribution = fit_t$aic
+)
+aic_values
+```
+
+Plots
+
+```{r, echo=FALSE}
+par(mfrow = c(1, 2))
+plot(fit_norm)
+plot(fit_t)
+```
+
+Eth 5-minute data
+
+```{r, echo=FALSE}
+eth_data <- read_csv("Binance_ETHUSDT_5min.csv", skip = 1)
+
+eth_data <- eth_data %>%
+  rename(
+    timestamp = `datetime`,
+    price = `price`
+  ) %>%
+  arrange(timestamp) %>%
+  mutate(return = c(NA, diff(log(as.numeric(price))))) %>%
+  drop_na()
+
+shapiro_sample <- head(eth_data$return, 5000)
+shapiro_result <- shapiro.test(shapiro_sample)
+shapiro_result
+```
+
+```{r, echo=FALSE}
+shapiro_sample <- head(eth_data$return, 5000)
+shapiro_result <- shapiro.test(shapiro_sample)
+shapiro_result
+```
+
+```{r, echo=FALSE}
+hist(shapiro_sample, breaks = 100, main = "ETH 5-Minute Log Returns", xlab = "Return", col = "lightgreen")
+
+qqnorm(shapiro_sample, main = "Q-Q Plot of ETH Returns")
+qqline(shapiro_sample, col = "red")
+```
